@@ -166,8 +166,8 @@ pre .h { color: #fdba74; }
   <header class="prose">
     <div class="eyebrow">家庭网络 · 代理网关调研</div>
     <h1>Mac mini Surge 网关方案</h1>
-    <p class="lede">目标：快、低延迟、高安全。Mac mini 运行 Surge 作为全家的代理网关，其他设备都走它。现状：服务端已部署 Xray VLESS + REALITY。</p>
-    <div class="meta">调研日期 2026-10-21 · 依据 Surge 官方手册与 sing-box 文档 · 评分为分析判断，非实测</div>
+    <p class="lede">目标：快、低延迟、高安全。Mac mini 运行 Surge，作为我这一侧所有设备的代理网关。约束：OpenWrt 主路由同时接着我和室友两边，两边要各自独立、互不影响；主路由准备换新。服务端已部署 Xray VLESS + REALITY。</p>
+    <div class="meta">调研日期 2026-10-21 · 第 2 版：加入室友分区与换路由器 · 依据 Surge 官方手册、OpenWrt 与 sing-box 文档 · 评分为分析判断，非实测</div>
   </header>
 
   <div class="verdict">
@@ -176,7 +176,9 @@ pre .h { color: #fdba74; }
       <div><div class="k">主力协议</div><div class="v">Hysteria 2</div><div class="d">基于 QUIC，延迟和吞吐最好，丢包严重的跨境线路上表现突出。占用 UDP 443，加端口跳跃。</div></div>
       <div><div class="k">TCP 备用</div><div class="v">AnyTLS</div><div class="d">UDP 被运营商限速时自动切过来。真实 TLS 加流量填充，连接复用，后续连接不用重新握手。</div></div>
       <div><div class="k">保留 REALITY</div><div class="v">经 sing-box 外挂</div><div class="d">Surge 不原生支持 VLESS。Mac 版可以用 External Proxy 拉起 sing-box，作为隐蔽性最强的兜底线路。</div></div>
-      <div><div class="k">拓扑</div><div class="v">旁路由，不需要新 AP</div><div class="d">Mac mini 用网线接现有路由器，把设备的网关和 DNS 指向它。路由器的 Wi-Fi 照常用。</div></div>
+      <div><div class="k">拓扑</div><div class="v">主路由分两个区，Mac mini 只管我这区</div><div class="d">新主路由跑 OpenWrt，把我和室友分成两个防火墙区域、两个子网，互相访问不到。只有我这个区的 DHCP 把网关和 DNS 指向 Mac mini，室友完全不受影响。</div></div>
+      <div><div class="k">换路由器</div><div class="v">推荐分体：路由盒 + Wi-Fi 7 AP</div><div class="d">路由盒跑 OpenWrt 25.12 负责分区和路由，Wi-Fi 交给原厂固件的 AP。不想折腾就选一体机 GL.iNet Flint 2。</div></div>
+      <div><div class="k">还选 OpenWrt 吗</div><div class="v">选，做路由；Wi-Fi 另说</div><div class="d">文本配置、能 SSH、能脚本化，AI agent 也最好操作。短板是 Wi-Fi 7 在主线 OpenWrt 里还不成熟。</div></div>
     </div>
   </div>
 
@@ -340,72 +342,111 @@ pre .h { color: #fdba74; }
     <div class="sec-head"><span class="num">06</span><h2>网络拓扑：现在和目标</h2></div>
     <figure>
       <div class="diagram">
-        <svg viewBox="0 0 760 200" role="img" aria-label="现有拓扑：光猫连接路由器，设备直接经路由器上网">
-          <rect class="node" x="20" y="70" width="120" height="56" rx="8"/><text class="t" x="80" y="96" text-anchor="middle">互联网</text><text class="s" x="80" y="114" text-anchor="middle">ISP</text>
-          <rect class="node" x="190" y="70" width="120" height="56" rx="8"/><text class="t" x="250" y="96" text-anchor="middle">光猫</text><text class="s" x="250" y="114" text-anchor="middle">ONT / 拨号或桥接</text>
-          <rect class="node" x="360" y="70" width="150" height="56" rx="8"/><text class="t" x="435" y="96" text-anchor="middle">现有路由器</text><text class="s" x="435" y="114" text-anchor="middle">DHCP · Wi-Fi · 网关</text>
-          <rect class="node" x="580" y="70" width="160" height="56" rx="8"/><text class="t" x="660" y="96" text-anchor="middle">手机 / 电视 / 电脑</text><text class="s" x="660" y="114" text-anchor="middle">网关 = 路由器</text>
-          <line class="wire" x1="140" y1="98" x2="190" y2="98"/>
-          <line class="wire" x1="310" y1="98" x2="360" y2="98"/>
-          <line class="wifi" x1="510" y1="98" x2="580" y2="98"/>
-          <text class="wt" x="545" y="88" text-anchor="middle">Wi-Fi</text>
-          <path class="flow" d="M660 140 C 660 175, 120 175, 80 140"/>
-          <polygon class="arrow-a" points="80,134 74,146 87,145"/>
-          <text class="ft" x="380" y="190" text-anchor="middle">现在：所有设备直接经路由器出网</text>
+        <svg viewBox="0 0 760 270" role="img" aria-label="现有拓扑：光猫接 OpenWrt 主路由，主路由一根网线接我的设备，一根接室友的子路由器；我的手机连主路由 Wi-Fi">
+          <rect class="node" x="20" y="100" width="100" height="56" rx="8"/><text class="t" x="70" y="126" text-anchor="middle">光猫</text><text class="s" x="70" y="144" text-anchor="middle">ONT</text>
+          <rect class="node" x="170" y="92" width="170" height="72" rx="8"/><text class="t" x="255" y="120" text-anchor="middle">OpenWrt 主路由</text><text class="s" x="255" y="138" text-anchor="middle">一个 LAN · 自带 Wi-Fi</text><text class="s" x="255" y="154" text-anchor="middle">我的设备连这个 Wi-Fi</text>
+          <rect class="node" x="420" y="20" width="150" height="56" rx="8"/><text class="t" x="495" y="46" text-anchor="middle">我的有线设备</text><text class="s" x="495" y="64" text-anchor="middle">网线 1</text>
+          <rect class="node" x="420" y="100" width="150" height="56" rx="8"/><text class="t" x="495" y="126" text-anchor="middle">我的手机 / 电脑</text><text class="s" x="495" y="144" text-anchor="middle">主路由 Wi-Fi</text>
+          <rect class="node" x="420" y="190" width="150" height="62" rx="8"/><text class="t" x="495" y="216" text-anchor="middle">室友路由器</text><text class="s" x="495" y="234" text-anchor="middle">网线 2 · 子路由</text>
+          <rect class="node" x="610" y="190" width="130" height="62" rx="8"/><text class="t" x="675" y="216" text-anchor="middle">室友设备</text><text class="s" x="675" y="234" text-anchor="middle">他的 Wi-Fi</text>
+          <line class="wire" x1="120" y1="128" x2="170" y2="128"/>
+          <path class="wire" d="M340 110 L 380 110 L 380 48 L 420 48"/>
+          <line class="wifi" x1="340" y1="128" x2="420" y2="128"/>
+          <path class="wire" d="M340 150 L 380 150 L 380 221 L 420 221"/>
+          <line class="wifi" x1="570" y1="221" x2="610" y2="221"/>
+          <text class="ft" x="600" y="140">⚠ 室友路由器的 WAN 就在我的 LAN 里</text>
+          <text class="ft" x="600" y="158">他那边能直接访问到我的设备</text>
         </svg>
       </div>
-      <figcaption>图 1 · 现有拓扑</figcaption>
+      <figcaption>图 1 · 现状。室友在自己的子路由后面，但子路由的上联口和我的设备在同一个网段，两边其实是耦合的：他能访问我，我改主路由也会影响他。</figcaption>
     </figure>
     <figure>
       <div class="diagram">
-        <svg viewBox="0 0 760 340" role="img" aria-label="目标拓扑：Mac mini 有线接入路由器作为旁路由网关，设备流量先到 Mac mini，加密后经路由器发往 VPS">
-          <rect class="node vps" x="20" y="20" width="150" height="62" rx="8"/><text class="t" x="95" y="46" text-anchor="middle">VPS</text><text class="s" x="95" y="64" text-anchor="middle">Xray + sing-box</text>
-          <rect class="node" x="20" y="150" width="150" height="56" rx="8"/><text class="t" x="95" y="176" text-anchor="middle">互联网</text><text class="s" x="95" y="194" text-anchor="middle">ISP</text>
-          <rect class="node" x="210" y="150" width="110" height="56" rx="8"/><text class="t" x="265" y="176" text-anchor="middle">光猫</text><text class="s" x="265" y="194" text-anchor="middle">不变</text>
-          <rect class="node" x="360" y="150" width="150" height="56" rx="8"/><text class="t" x="435" y="176" text-anchor="middle">现有路由器</text><text class="s" x="435" y="194" text-anchor="middle">Wi-Fi + 交换，保留</text>
-          <rect class="node hot" x="560" y="30" width="180" height="70" rx="8"/><text class="t" x="650" y="58" text-anchor="middle">Mac mini · Surge</text><text class="s" x="650" y="76" text-anchor="middle">网关模式 · 192.168.1.2</text><text class="s" x="650" y="92" text-anchor="middle">静态 IP · 不睡眠</text>
-          <rect class="node" x="560" y="240" width="180" height="70" rx="8"/><text class="t" x="650" y="268" text-anchor="middle">手机 / 电视 / 电脑</text><text class="s" x="650" y="286" text-anchor="middle">网关 → 192.168.1.2</text><text class="s" x="650" y="302" text-anchor="middle">DNS  → 192.168.1.2</text>
-          <line class="wire" x1="95" y1="82" x2="95" y2="150"/>
-          <line class="wire" x1="170" y1="178" x2="210" y2="178"/>
-          <line class="wire" x1="320" y1="178" x2="360" y2="178"/>
-          <path class="wire" d="M510 165 L 535 165 L 535 65 L 560 65"/>
-          <text class="wt" x="528" y="120" text-anchor="end">网线</text>
-          <path class="wifi" d="M510 192 L 535 192 L 535 275 L 560 275"/>
-          <text class="wt" x="528" y="240" text-anchor="end">Wi-Fi / 网线</text>
-          <path class="flow" d="M742 262 C 760 200, 760 140, 742 90"/>
-          <polygon class="arrow-a" points="742,84 736,97 749,96"/>
-          <text class="ft" x="752" y="178" text-anchor="end" transform="rotate(-90 752 178)">① 明文流量先到 Mac mini</text>
-          <path class="flow2" d="M560 48 C 420 0, 260 0, 175 40"/>
-          <polygon class="arrow-b" points="170,44 183,44 177,33"/>
-          <text class="ft2" x="370" y="22" text-anchor="middle">② Surge 加密（HY2 / AnyTLS / REALITY）→ 经路由器、光猫 → VPS</text>
-          <text class="wt" x="435" y="232" text-anchor="middle">路由器在这里只做二层交换和出网，不需要改 Wi-Fi</text>
+        <svg viewBox="0 0 760 400" role="img" aria-label="目标拓扑：新主路由用防火墙分成我和室友两个区域；我的区域里有 Mac mini 网关和我的 Wi-Fi，室友区域里是他的路由器；两区互不可达">
+          <rect class="node vps" x="20" y="20" width="120" height="56" rx="8"/><text class="t" x="80" y="44" text-anchor="middle">VPS</text><text class="s" x="80" y="62" text-anchor="middle">Xray + sing-box</text>
+          <rect class="node" x="20" y="172" width="100" height="56" rx="8"/><text class="t" x="70" y="198" text-anchor="middle">光猫</text><text class="s" x="70" y="216" text-anchor="middle">不变</text>
+          <rect class="node hot" x="160" y="160" width="160" height="80" rx="8"/><text class="t" x="240" y="188" text-anchor="middle">新主路由</text><text class="s" x="240" y="206" text-anchor="middle">OpenWrt 25.12</text><text class="s" x="240" y="222" text-anchor="middle">两个防火墙区 + DHCP</text>
+
+          <rect x="360" y="14" width="390" height="172" rx="10" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <text class="ft" x="372" y="34">区域 me · 192.168.10.0/24</text>
+          <rect class="node hot" x="375" y="48" width="170" height="58" rx="8"/><text class="t" x="460" y="72" text-anchor="middle">Mac mini · Surge</text><text class="s" x="460" y="90" text-anchor="middle">.2 · 静态 IP · 网线</text>
+          <rect class="node" x="375" y="118" width="170" height="54" rx="8"/><text class="t" x="460" y="141" text-anchor="middle">我的 Wi-Fi</text><text class="s" x="460" y="158" text-anchor="middle">新 AP 或主路由自带</text>
+          <rect class="node" x="570" y="80" width="165" height="62" rx="8"/><text class="t" x="652" y="104" text-anchor="middle">我的设备</text><text class="s" x="652" y="122" text-anchor="middle">网关 / DNS → .2</text>
+
+          <line class="bad-x" x1="360" y1="200" x2="750" y2="200"/>
+          <text class="wt" x="555" y="216" text-anchor="middle" style="fill: var(--bad)">防火墙：两个区域互相访问不到，各自只能出网</text>
+
+          <rect x="360" y="228" width="390" height="158" rx="10" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <text class="wt" x="372" y="248" style="font-weight:600">区域 roommate · 192.168.20.0/24</text>
+          <rect class="node" x="375" y="262" width="170" height="64" rx="8"/><text class="t" x="460" y="288" text-anchor="middle">室友路由器</text><text class="s" x="460" y="306" text-anchor="middle">路由模式 · 自己的 NAT</text>
+          <rect class="node" x="570" y="262" width="165" height="64" rx="8"/><text class="t" x="652" y="288" text-anchor="middle">室友设备</text><text class="s" x="652" y="306" text-anchor="middle">他自己的子网和 Wi-Fi</text>
+          <text class="wt" x="555" y="360" text-anchor="middle">不经过 Mac mini，不受我的代理和配置影响</text>
+
+          <line class="wire" x1="80" y1="76" x2="80" y2="172"/>
+          <line class="wire" x1="120" y1="200" x2="160" y2="200"/>
+          <path class="wire" d="M320 180 L 345 180 L 345 77 L 375 77"/>
+          <path class="wire" d="M320 195 L 352 195 L 352 145 L 375 145"/>
+          <path class="wire" d="M320 220 L 345 220 L 345 294 L 375 294"/>
+          <line class="wifi" x1="545" y1="145" x2="570" y2="125"/>
+          <line class="wifi" x1="545" y1="294" x2="570" y2="294"/>
+          <path class="flow" d="M652 80 C 652 50, 600 40, 548 66"/>
+          <polygon class="arrow-a" points="545,68 557,60 557,72"/>
+          <text class="ft" x="660" y="40" text-anchor="middle">① 我的流量先到 Mac mini</text>
+          <path class="flow2" d="M375 60 C 300 20, 200 20, 143 40"/>
+          <polygon class="arrow-b" points="140,42 152,36 151,48"/>
+          <text class="ft2" x="255" y="18" text-anchor="middle">② 加密后经主路由出网 → VPS</text>
         </svg>
       </div>
-      <figcaption>图 2 · 目标拓扑（旁路由）。物理接线只多了一根网线；变化在于设备的“网关”从路由器改成 Mac mini。</figcaption>
+      <figcaption>图 2 · 目标拓扑。新主路由把两边分成两个区域、两个子网，防火墙禁止互访。Mac mini 只在我的区域里当网关；室友那边保持现在的用法，只是换了一个隔离的上联网段。</figcaption>
     </figure>
 
-    <h3>需要新的 AP 吗？</h3>
-    <div class="callout good"><b>不需要。</b>旁路由方案里，现有路由器的 Wi-Fi 和交换功能照常工作，设备还是连原来的 Wi-Fi，只是拿到的网关和 DNS 变成 Mac mini。只有两种情况才考虑加 AP：现有 Wi-Fi 覆盖本来就不够（和代理无关）；或者你想把 Mac mini 做成真正的主路由（方案 C），这时也可以把现有路由器改成 AP 模式来用，不用另买。</div>
+    <h3>主路由上要做的三件事</h3>
+    <ol class="steps">
+      <li><div><b>建两个接口和防火墙区。</b>一个 <code>me</code>（192.168.10.0/24，包含 Mac mini 的网口和我的 Wi-Fi），一个 <code>roommate</code>（192.168.20.0/24，只包含接室友路由器的那个网口）。两个区都只允许转发到 <code>wan</code>，彼此之间不建转发规则。</div></li>
+      <li><div><b>室友区只给最少权限。</b><code>roommate</code> 区的入站默认拒绝，只放行 DHCP 和 DNS，这样他那边也登录不了主路由后台。</div></li>
+      <li><div><b>只有 me 区的 DHCP 下发 Mac mini。</b>OpenWrt 可以按接口设置 DHCP 选项，选项 3（网关）和 6（DNS）填 192.168.10.2。室友区的 DHCP 保持默认。</div></li>
+    </ol>
+    <div class="code-head">OpenWrt UCI 示意（接口名、网口名按实际修改）</div>
+    <pre><span class="c"># me 区：网关和 DNS 指向 Mac mini</span>
+uci add_list dhcp.me.dhcp_option='3,192.168.10.2'
+uci add_list dhcp.me.dhcp_option='6,192.168.10.2'
 
-    <h3>三种接入方式</h3>
+<span class="c"># 两个区：只允许各自出网，不建 me ↔ roommate 转发</span>
+uci add firewall forwarding; uci set firewall.@forwarding[-1].src='me';       uci set firewall.@forwarding[-1].dest='wan'
+uci add firewall forwarding; uci set firewall.@forwarding[-1].src='roommate'; uci set firewall.@forwarding[-1].dest='wan'
+uci set firewall.roommate.input='REJECT'   <span class="c"># 另加规则放行 udp 67-68（DHCP）和 53（DNS）</span>
+
+uci commit && service dnsmasq restart && service firewall restart</pre>
+    <div class="callout bad"><b>别让 Mac mini 自己拿到这个 DHCP 选项。</b>Mac mini 如果也从 DHCP 拿地址，就会把网关指向自己，形成环路。Mac mini 必须手动设静态 IP，网关填主路由 192.168.10.1，DNS 填主路由或公共 DNS。</div>
+
+    <h3>需要新的 AP 吗？</h3>
+    <div class="prose">
+      <p>和上一版不同，现在答案取决于你选哪种新路由器：</p>
+      <ul>
+        <li><b>选一体机</b>（路由和 Wi-Fi 在同一台）：不需要另买 AP，我的 Wi-Fi 由新主路由提供。</li>
+        <li><b>选分体</b>（推荐，见第 11 节）：路由盒没有 Wi-Fi，需要一台 AP 接在 me 区的网口上。你说想要“信号更稳”，这台 AP 正是解决这个问题的。</li>
+        <li><b>室友那边</b>：不用动，他继续用自己的路由器。</li>
+      </ul>
+    </div>
+
+    <h3>我这一侧的三种接入方式</h3>
     <div class="opts">
       <div class="card">
         <div class="card-top"><h3>A · 逐台手动指定</h3><span class="pill good">先用来测试</span></div>
-        <p class="note">在单个设备的网络设置里，把网关和 DNS 手动填成 Mac mini 的 IP。</p>
-        <ul class="pro"><li>零风险，只影响你改过的设备</li><li>适合先验证整套方案能不能跑通</li></ul>
-        <ul class="con"><li>每台都要手动改，电视之类的设备不一定能改</li></ul>
+        <p class="note">在单个设备上把网关和 DNS 手动填成 192.168.10.2。</p>
+        <ul class="pro"><li>零风险，只影响你改过的设备</li><li>适合先验证整套方案</li></ul>
+        <ul class="con"><li>每台都要手动改</li></ul>
       </div>
       <div class="card pick">
-        <div class="card-top"><h3>B · DHCP 下发 Mac mini</h3><span class="pill good">推荐</span></div>
-        <p class="note">B1：路由器的 DHCP 如果能自定义下发的网关和 DNS（OpenWrt、梅林等一般可以），就填 Mac mini。<br>B2：路由器不能改，就关掉路由器的 DHCP，开 Surge 的 DHCP 服务（Mac 6.5.0+），由它把自己通告成网关和 DNS。</p>
-        <ul class="pro"><li>全屋设备自动生效</li><li>Surge 设备列表里可以给每台设备单独设置规则</li></ul>
-        <ul class="con"><li>Mac mini 宕机，全家断网（B1 改回去很快；B2 要重新打开路由器 DHCP）</li></ul>
+        <div class="card-top"><h3>B · me 区 DHCP 下发 Mac mini</h3><span class="pill good">推荐</span></div>
+        <p class="note">用上面的 UCI 配置。OpenWrt 能按接口设置 DHCP 选项，所以不需要关掉路由器 DHCP，也不需要开 Surge 的 DHCP。</p>
+        <ul class="pro"><li>我的设备自动生效，室友完全不受影响</li><li>Mac mini 出问题时，删掉两条选项就能恢复直连</li></ul>
+        <ul class="con"><li>Mac mini 宕机时我这一侧断网，直到改回配置、设备续租</li></ul>
       </div>
       <div class="card">
         <div class="card-top"><h3>C · Mac mini 做主路由</h3><span class="pill bad">不推荐</span></div>
-        <p class="note">Mac mini 加一个 USB 或雷雳网卡，一口连光猫拨号，一口连 LAN，原路由器改成 AP 模式。</p>
-        <ul class="pro"><li>拓扑最“干净”</li></ul>
-        <ul class="con"><li>macOS 不是路由器系统：系统更新重启、睡眠、拨号都会出问题</li><li>出故障时没有简单的回退办法</li></ul>
+        <p class="note">让 Mac mini 直接连光猫。</p>
+        <ul class="con"><li>室友的网络会依赖你的 Mac mini，和“两边不耦合”的要求正好相反</li><li>macOS 的更新重启和睡眠不适合当主路由</li></ul>
       </div>
     </div>
   </section>
@@ -500,7 +541,7 @@ Proxy = fallback, HY2, AnyTLS, REALITY, url=http://www.gstatic.com/generate_204,
 [Rule]
 <span class="c"># 示例：电视直连、局域网直连，其余按你的规则集分流</span>
 DEVICE-NAME,Apple-TV,DIRECT
-IP-CIDR,192.168.0.0/16,DIRECT
+IP-CIDR,192.168.0.0/16,DIRECT  <span class="c"># 主路由后台、室友网段等局域网地址都直连</span>
 GEOIP,CN,DIRECT
 FINAL,Proxy</pre>
     <p class="prose note">网关模式在 Surge Mac 界面里打开，配置文件里没有开关。上面的参数名来自官方手册，但这份配置没有在真机上跑过，第一次使用时请留意 Surge 的报错提示。</p>
@@ -510,12 +551,13 @@ FINAL,Proxy</pre>
   <section>
     <div class="sec-head"><span class="num">09</span><h2>落地步骤</h2></div>
     <ol class="steps">
+      <li><div><b>换主路由，先分好区。</b>新主路由刷 OpenWrt 25.12，建 <code>me</code> 和 <code>roommate</code> 两个区（第 06 节）。室友路由器接到 roommate 口，确认他能正常上网，而且从他那边访问不到 192.168.10.x。</div></li>
       <li><div><b>服务端加 sing-box。</b>申请证书，按第 07 节起 Hysteria 2 和 AnyTLS，加端口跳跃规则，云厂商安全组放行 443/udp、20000–30000/udp、8443/tcp。</div></li>
-      <li><div><b>Mac mini 准备。</b>用网线接路由器，设静态 IP（例如 192.168.1.2）。系统设置里打开“显示器关闭时防止自动进入睡眠”和“断电后自动启动”，关掉自动安装更新后重启。</div></li>
+      <li><div><b>Mac mini 准备。</b>用网线接 me 区网口，手动设静态 IP 192.168.10.2，网关 192.168.10.1。系统设置里打开“显示器关闭时防止自动进入睡眠”和“断电后自动启动”，关掉自动安装更新后重启。</div></li>
       <li><div><b>Surge 单机验证。</b>先不开网关，在 Mac mini 本机测通三条线路，看延迟和速度，确认 fallback 能切换。</div></li>
-      <li><div><b>开网关模式，用一台设备测试（方案 A）。</b>手机手动把网关和 DNS 设成 192.168.1.2，确认能上网、规则生效、Surge 设备列表里能看到这台手机。</div></li>
-      <li><div><b>处理 IPv6。</b>在路由器 LAN 侧关掉 IPv6（RA/DHCPv6），否则设备会走 IPv6 绕过 Mac mini，见第 10 节。</div></li>
-      <li><div><b>全屋生效（方案 B）。</b>能改路由器 DHCP 的网关和 DNS 选项就改；不能改就关掉路由器 DHCP，开 Surge DHCP。留一台设备设成静态 IP、网关指向路由器，作为应急入口。</div></li>
+      <li><div><b>开网关模式，用一台设备测试（方案 A）。</b>手机手动把网关和 DNS 设成 192.168.10.2，确认能上网、规则生效、Surge 设备列表里能看到这台手机。</div></li>
+      <li><div><b>处理 IPv6。</b>在主路由的 me 接口上关掉 IPv6（RA/DHCPv6），否则我的设备会走 IPv6 绕过 Mac mini，见第 10 节。室友区可以保留 IPv6。</div></li>
+      <li><div><b>me 区全部生效（方案 B）。</b>给 me 区的 DHCP 加上选项 3 和 6。留一台设备设成静态 IP、网关指向 192.168.10.1，作为应急入口。</div></li>
     </ol>
   </section>
 
@@ -523,14 +565,92 @@ FINAL,Proxy</pre>
   <section>
     <div class="sec-head"><span class="num">10</span><h2>风险与坑</h2></div>
     <div class="risks">
-      <div class="risk"><h3>单点故障 <span class="pill bad">高</span></h3><p>Mac mini 关机、睡眠或 Surge 崩溃，全家断网。对策：禁止睡眠；保留路由器 DHCP 一键恢复的办法；准备一台静态 IP 的应急设备。</p></div>
-      <div class="risk"><h3>IPv6 绕过 <span class="pill bad">高</span></h3><p>路由器还在发 IPv6 地址的话，设备会直接走 IPv6 出网，不经过 Mac mini。最简单的做法是关掉 LAN 侧 IPv6。</p></div>
+      <div class="risk"><h3>单点故障 <span class="pill bad">高</span></h3><p>Mac mini 关机、睡眠或 Surge 崩溃，我这一侧断网（室友不受影响）。对策：禁止睡眠；保留路由器 DHCP 一键恢复的办法；准备一台静态 IP 的应急设备。</p></div>
+      <div class="risk"><h3>IPv6 绕过 <span class="pill bad">高</span></h3><p>主路由还在给 me 区发 IPv6 地址的话，设备会直接走 IPv6 出网，不经过 Mac mini。最简单的做法是关掉 me 接口上的 IPv6。</p></div>
       <div class="risk"><h3>UDP 被限速 <span class="pill warn">中</span></h3><p>部分运营商会对 UDP 限速或干扰，Hysteria 2 速度会突然掉。fallback 组会切到 AnyTLS；Hysteria 2 也可以考虑开 Salamander 或 Gecko 混淆。</p></div>
       <div class="risk"><h3>UDP Fast Path <span class="pill warn">中</span></h3><p>Surge Mac 6.4.0+ 的网关模式里，短时间内连接数很多的设备（典型如游戏、P2P）会被切到三层直接转发，这部分流量<b>不经过代理</b>，规则也不生效。可以在 Dashboard 或设备列表里给单个设备固定行为。</p></div>
       <div class="risk"><h3>设备自带加密 DNS <span class="pill warn">中</span></h3><p>Chrome 安全 DNS、Android 私人 DNS、iCloud 专用代理会绕开 Surge 的 DNS。Surge 仍然能按 IP 和 SNI 分流，但基于域名的规则可能不准。需要时在这些设备上关掉这些功能。</p></div>
       <div class="risk"><h3>Wi-Fi 当网关 <span class="pill warn">中</span></h3><p>Mac mini 如果走 Wi-Fi，所有流量要在无线上来回两次，延迟和吞吐都会变差。一定要用网线。</p></div>
       <div class="risk"><h3>Snell v6 beta <span class="pill warn">低</span></h3><p>想试 Snell 的话先用 v5。v6 官方标注为 beta，协议可能不兼容地变更。</p></div>
+      <div class="risk"><h3>Mac mini 拿到指向自己的网关 <span class="pill bad">高</span></h3><p>me 区的 DHCP 选项会让所有 DHCP 客户端把网关设成 .2，Mac mini 自己也不例外。Mac mini 一定要手动设静态 IP，网关填主路由。</p></div>
+      <div class="risk"><h3>分区没隔干净 <span class="pill warn">中</span></h3><p>换完路由后从室友那边 ping 一下 192.168.10.1 和 Mac mini，应该都不通（DHCP、DNS 除外）。也检查一下 Wi-Fi 是否只桥接在 me 接口上。</p></div>
       <div class="risk"><h3>网关只对局域网开放 <span class="pill good">默认安全</span></h3><p><code>gateway-restricted-to-lan</code> 默认开启，只接受本网段设备，就算误配了 DMZ 也不会暴露到公网。保持默认。</p></div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section>
+    <div class="sec-head"><span class="num">11</span><h2>换什么路由器</h2></div>
+    <div class="prose">
+      <p>代理已经交给 Mac mini 上的 Surge，所以主路由不需要跑代理插件，也就不需要多强的 CPU。它要做好的是三件事：<b>分区隔离（VLAN 和防火墙）</b>、<b>稳定的 Wi-Fi</b>、<b>足够多的有线口</b>。我这侧至少要接 Mac mini 和 AP，加上 WAN 和室友，一共 4 个口。</p>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>路线</th><th>型号</th><th>芯片 / 接口</th><th>Wi-Fi</th><th>主线 OpenWrt</th><th>适合谁</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td class="proto">分体<small>推荐</small></td><td><b>路由盒：</b>x86 四网口小主机（N100/N150 级别，4×2.5G）或 Banana Pi BPI-R4<br><b>Wi-Fi：</b>一台 Wi-Fi 7、2.5G 上联的 AP，用原厂固件跑 AP 模式</td><td>x86：4×2.5G<br>BPI-R4：MT7988A，带 10G SFP</td><td>由 AP 负责</td><td><span class="pill good">路由盒有官方镜像</span></td><td>要信号稳、要性能、以后想单独升级 Wi-Fi</td></tr>
+          <tr><td class="proto">一体机·稳妥</td><td>GL.iNet Flint 2（GL-MT6000）</td><td>MT7986 四核 2.0 GHz</td><td>Wi-Fi 6 双频 4×4，没有 6 GHz</td><td><span class="pill good">官方镜像</span></td><td>不想折腾，一台搞定，约 170 美元</td></tr>
+          <tr><td class="proto">一体机·Wi-Fi 7</td><td>GL.iNet Flint 3（GL-BE9300）</td><td>IPQ5332，5×2.5G</td><td>Wi-Fi 7 三频</td><td><span class="pill warn">未支持，开发中</span></td><td>要 Wi-Fi 7，接受用 GL 官方固件（基于 OpenWrt 23.05 定制）</td></tr>
+          <tr><td class="proto">商业生态</td><td>UniFi 网关 + U7 系列 AP</td><td>—</td><td>Wi-Fi 7</td><td><span class="pill bad">不是 OpenWrt</span></td><td>想要 App 管理、开箱即用，接受定制能力弱</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cards">
+      <div class="card pick">
+        <div class="card-top"><h3>为什么推荐分体</h3></div>
+        <ul class="pro">
+          <li><b>Wi-Fi 交给原厂驱动最稳。</b>Wi-Fi 7 在主线 OpenWrt 里还不成熟：Flint 3 的高通 Wi-Fi 驱动还在开发中，联发科的 Wi-Fi 7 设备也还在陆续合入</li>
+          <li><b>路由用 OpenWrt 最灵活。</b>分区、防火墙、按接口下发 DHCP 选项，都是 OpenWrt 的强项</li>
+          <li><b>可以分开升级。</b>Wi-Fi 8 出来只换 AP，路由盒不动</li>
+          <li><b>网口够用。</b>x86 小主机一般有 4 个 2.5G 口，WAN、Mac mini、AP、室友正好</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>选购时要核对的</h3></div>
+        <ul>
+          <li>到 OpenWrt 官方硬件表（Table of Hardware）确认型号<b>和硬件版本</b>都在支持列表里</li>
+          <li>AP 必须支持 VLAN 或纯 AP 模式，上联口最好是 2.5G</li>
+          <li>BPI-R4 是开发板，要自己配外壳、电源和 Wi-Fi 模块，不适合想省事的人</li>
+          <li>价格和型号来自 2026 年的公开评测，购买前以官方页面为准</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section>
+    <div class="sec-head"><span class="num">12</span><h2>AI 时代，OpenWrt 还是最好的选择吗</h2></div>
+    <div class="prose">
+      <p><b>做路由，是。</b>理由反而因为 AI 变得更充分了：</p>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>系统</th><th>配置方式</th><th>AI agent 能否操作</th><th>Wi-Fi</th><th>代理生态</th><th>评价</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td class="proto">OpenWrt 25.12</td><td>文本配置（UCI）+ SSH + LuCI 网页</td><td><span class="pill good">最好</span> 读写配置文件、跑命令都行</td><td><span class="pill warn">Wi-Fi 7 不成熟</span></td><td><span class="pill good">sing-box、homeproxy、OpenClash</span></td><td>路由的首选</td></tr>
+          <tr><td class="proto">ImmortalWrt</td><td>同 OpenWrt</td><td><span class="pill good">好</span></td><td>同 OpenWrt</td><td><span class="pill good">内置包更多</span></td><td>国内常用的 OpenWrt 分支，软件源更方便</td></tr>
+          <tr><td class="proto">OPNsense / pfSense</td><td>网页 + API + SSH</td><td><span class="pill good">好</span></td><td><span class="pill bad">基本不做 Wi-Fi</span></td><td><span class="pill warn">一般</span></td><td>x86 防火墙很强，但要另配 AP</td></tr>
+          <tr><td class="proto">UniFi</td><td>App / 网页，有 API</td><td><span class="pill warn">一般</span> 以图形界面为主</td><td><span class="pill good">体验好</span></td><td><span class="pill bad">弱</span></td><td>省心，但能改的东西少</td></tr>
+          <tr><td class="proto">原厂固件</td><td>网页 / App</td><td><span class="pill bad">差</span> 只能点界面</td><td><span class="pill good">驱动最稳</span></td><td><span class="pill bad">基本没有</span></td><td>适合当纯 AP</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-top"><h3>“AI native” 真正意味着什么</h3></div>
+        <ul>
+          <li>原厂路由器宣传的“AI 加速”“AI 漫游”“AI 安全”，大多是营销名词下的 QoS 和信号调度，不构成换系统的理由</li>
+          <li>真正有用的是<b>能让 AI agent 接手运维</b>：配置是纯文本、能 SSH、能写脚本、改动能放进 git 管理。OpenWrt 全部满足</li>
+          <li>和第一轮聊的内容连起来：在 Mac mini 上用 Remote Control 跑 Claude Code，它就在你的局域网里，可以直接 SSH 到 OpenWrt 帮你改配置、排查问题</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>版本提醒</h3></div>
+        <ul>
+          <li>当前稳定版是 25.12 系列（2026 年 3 月发布，维基百科记录最新为 25.12.5），包管理器从 opkg 换成了 apk，命令写法不同</li>
+          <li>官方说明 24.10 在 2026 年 9 月之后不再提供安全更新。<b>你现在的主路由如果还是 24.10，已经停止安全更新了</b>，这也是换机的一个理由</li>
+        </ul>
+      </div>
     </div>
   </section>
 
@@ -547,10 +667,17 @@ FINAL,Proxy</pre>
       <li><a href="https://manual.nssurge.com/policies/trust-tunnel.html" target="_blank" rel="noopener">Surge · Trust Tunnel</a></li>
       <li><a href="https://manual.nssurge.com/policies/external.html" target="_blank" rel="noopener">Surge · External Proxy Program</a></li>
       <li><a href="https://manual.nssurge.com/features/gateway.html" target="_blank" rel="noopener">Surge · Gateway Mode</a></li>
-      <li><a href="https://manual.nssurge.com/features/dhcp.html" target="_blank" rel="noopener">Surge · DHCP</a></li>
-      <li><a href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/" target="_blank" rel="noopener">sing-box · Hysteria2 入站</a></li>
+            <li><a href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/" target="_blank" rel="noopener">sing-box · Hysteria2 入站</a></li>
       <li><a href="https://innei.in/en/posts/experience/aws-vless-surge-full-chain-deployment-agent-log" target="_blank" rel="noopener">innei.in · VLESS + Surge 全链路部署记录</a></li>
       <li><a href="https://innei.in/en/posts/experience/aws-vless-surge-protocol-boundaries-network-switching" target="_blank" rel="noopener">innei.in · Surge 协议边界</a></li>
+      <li><a href="https://openwrt.org/releases/25.12/start" target="_blank" rel="noopener">OpenWrt 25.12 发布页</a></li>
+      <li><a href="https://www.helpnetsecurity.com/2026/03/09/openwrt-25-12-0-released/" target="_blank" rel="noopener">Help Net Security · OpenWrt 25.12.0 发布</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/OpenWrt" target="_blank" rel="noopener">Wikipedia · OpenWrt（版本记录）</a></li>
+      <li><a href="https://openwrt.org/toh/gl.inet/gl-be9300" target="_blank" rel="noopener">OpenWrt 硬件表 · GL.iNet Flint 3</a></li>
+      <li><a href="https://forum.openwrt.org/t/gl-inet-flint-3-exploration-gl-be9300-ipq5332/250267?page=4" target="_blank" rel="noopener">OpenWrt 论坛 · Flint 3 移植进展</a></li>
+      <li><a href="https://www.cnx-software.com/2025/06/10/gl-inet-flint-3-gl-be9300-is-an-affordable-tri-band-wifi-7-router-with-5-2-5gbe-ports/" target="_blank" rel="noopener">CNX Software · Flint 3 介绍</a></li>
+      <li><a href="https://macmyths.com/5-best-router-for-openwrt-in-2026/" target="_blank" rel="noopener">2026 OpenWrt 路由器推荐（第三方汇总）</a></li>
+      <li><a href="https://forum.openwrt.org/t/quantum-fiber-w1700k-support/222776/3181" target="_blank" rel="noopener">OpenWrt 论坛 · MT7996 Wi-Fi 7 设备支持进展</a></li>
       <li><a href="https://xtls.github.io/" target="_blank" rel="noopener">Project X（Xray / REALITY）</a></li>
     </ul>
   </section>
