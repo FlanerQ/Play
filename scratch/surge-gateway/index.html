@@ -1,0 +1,557 @@
+<title>Mac mini Surge 网关方案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: single reading column (~72ch) with full-width diagram/table bands; network-diagram palette (slate-blue ground, signal amber accent). */
+:root {
+  --bg: #f5f7f9;
+  --surface: #ffffff;
+  --surface-2: #eaeef2;
+  --fg: #16202b;
+  --muted: #5a6876;
+  --line: #cfd7df;
+  --accent: #c2410c;
+  --accent-soft: #fde7d9;
+  --link: #1d5fa8;
+  --good: #1f7a4d;
+  --good-soft: #dcf1e5;
+  --warn: #9a6400;
+  --warn-soft: #fbefd2;
+  --bad: #b42318;
+  --bad-soft: #fbe1de;
+  --code-bg: #1b2530;
+  --code-fg: #e6edf3;
+  --font-display: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151c; --surface: #16202a; --surface-2: #1d2935; --fg: #e3e9ef; --muted: #93a2b1; --line: #2c3a48;
+    --accent: #fb923c; --accent-soft: #3a2416; --link: #7cb4f0;
+    --good: #5fd39a; --good-soft: #143326; --warn: #f2c25b; --warn-soft: #3a2e12; --bad: #f58a80; --bad-soft: #3d1a17;
+    --code-bg: #0a1016; --code-fg: #dfe7ee; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151c; --surface: #16202a; --surface-2: #1d2935; --fg: #e3e9ef; --muted: #93a2b1; --line: #2c3a48;
+  --accent: #fb923c; --accent-soft: #3a2416; --link: #7cb4f0;
+  --good: #5fd39a; --good-soft: #143326; --warn: #f2c25b; --warn-soft: #3a2e12; --bad: #f58a80; --bad-soft: #3d1a17;
+  --code-bg: #0a1016; --code-fg: #dfe7ee; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15.5px; line-height: 1.7; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+.prose { max-width: 72ch; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.3; }
+h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 900; margin: 6px 0 12px; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 700; margin: 0 0 14px; }
+h3 { font-size: 17px; font-weight: 700; margin: 0 0 8px; }
+p { margin: 0 0 12px; }
+a { color: var(--link); }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.lede { font-size: 17px; color: var(--muted); max-width: 66ch; }
+.meta { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+section { margin-top: 56px; display: grid; gap: 16px; }
+section > .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.sec-head .num { font-family: var(--font-mono); color: var(--accent); font-weight: 600; font-size: 14px; }
+.sec-head h2 { margin: 0; }
+
+/* verdict */
+.verdict { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.verdict-head { padding: 14px 20px; background: var(--fg); color: var(--bg); font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.verdict-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.verdict-grid > div { padding: 16px 20px; border-top: 1px solid var(--line); border-right: 1px solid var(--line); min-width: 0; }
+.verdict-grid .k { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.verdict-grid .v { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 4px 0 4px; }
+.verdict-grid .d { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+/* tables */
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--surface-2); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.proto { font-weight: 600; white-space: nowrap; }
+td.proto small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+tr.pick td { background: var(--accent-soft); }
+.dots { font-family: var(--font-mono); letter-spacing: 1px; white-space: nowrap; color: var(--accent); }
+.dots .off { color: var(--line); }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; font-weight: 500; white-space: nowrap; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.note { font-size: 13px; color: var(--muted); }
+
+/* protocol cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; display: grid; gap: 8px; align-content: start; }
+.card.pick { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card .role { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); letter-spacing: 0.06em; }
+.card ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.6; }
+.card .pro li::marker { content: "+  "; color: var(--good); font-weight: 700; }
+.card .con li::marker { content: "−  "; color: var(--bad); font-weight: 700; }
+
+/* latency bars */
+.bars { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 12px; }
+.bar-row { display: grid; grid-template-columns: minmax(120px, 210px) 1fr; gap: 12px; align-items: center; }
+.bar-row .lbl { font-size: 13.5px; font-weight: 500; }
+.bar-row .lbl small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.track { display: flex; gap: 3px; align-items: center; min-width: 0; }
+.seg { height: 22px; border-radius: 4px; font-family: var(--font-mono); font-size: 11.5px; display: flex; align-items: center; justify-content: center; color: var(--bg); white-space: nowrap; overflow: hidden; }
+.seg.tcp { background: var(--muted); }
+.seg.tls { background: var(--accent); }
+.seg.quic { background: var(--link); }
+.seg.zero { background: transparent; color: var(--good); justify-content: flex-start; font-weight: 600; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+@media (max-width: 560px) { .bar-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* diagrams */
+figure { margin: 0; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 660px; height: auto; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; }
+svg .node { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
+svg .node.hot { fill: var(--accent-soft); stroke: var(--accent); }
+svg .node.vps { fill: var(--surface); stroke: var(--link); stroke-dasharray: 4 3; }
+svg .t { fill: var(--fg); font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+svg .s { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+svg .wire { stroke: var(--muted); stroke-width: 2; fill: none; }
+svg .wifi { stroke: var(--muted); stroke-width: 2; fill: none; stroke-dasharray: 2 5; stroke-linecap: round; }
+svg .flow { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+svg .flow2 { stroke: var(--link); stroke-width: 2.5; fill: none; stroke-dasharray: 7 5; }
+svg .ft { fill: var(--accent); font-family: var(--font-body); font-size: 12px; font-weight: 600; }
+svg .ft2 { fill: var(--link); font-family: var(--font-body); font-size: 12px; font-weight: 600; }
+svg .wt { fill: var(--muted); font-family: var(--font-mono); font-size: 10.5px; }
+svg .arrow-a { fill: var(--accent); }
+svg .arrow-b { fill: var(--link); }
+svg .bad-x { stroke: var(--bad); stroke-width: 3; }
+
+/* options */
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+
+/* steps */
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+ol.steps > li::before { content: counter(s); font-family: var(--font-mono); font-weight: 600; color: var(--accent); font-size: 18px; }
+ol.steps > li > div { min-width: 0; }
+ol.steps b { font-family: var(--font-display); }
+
+/* code */
+pre { margin: 0; background: var(--code-bg); color: var(--code-fg); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.8px; line-height: 1.6; }
+pre .c { color: #8b9bab; }
+pre .h { color: #fdba74; }
+.code-head { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-bottom: -8px; }
+
+.callout { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14.5px; }
+.callout.bad { border-color: var(--bad); background: var(--bad-soft); }
+.callout.good { border-color: var(--good); background: var(--good-soft); }
+.callout b { font-family: var(--font-display); }
+
+.risks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.risk { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.risk h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.risk p { font-size: 14px; margin: 0; }
+
+.sources { font-size: 13.5px; columns: 2 300px; column-gap: 32px; padding-left: 18px; }
+.sources li { break-inside: avoid; margin-bottom: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header class="prose">
+    <div class="eyebrow">家庭网络 · 代理网关调研</div>
+    <h1>Mac mini Surge 网关方案</h1>
+    <p class="lede">目标：快、低延迟、高安全。Mac mini 运行 Surge 作为全家的代理网关，其他设备都走它。现状：服务端已部署 Xray VLESS + REALITY。</p>
+    <div class="meta">调研日期 2026-10-21 · 依据 Surge 官方手册与 sing-box 文档 · 评分为分析判断，非实测</div>
+  </header>
+
+  <div class="verdict">
+    <div class="verdict-head">结论</div>
+    <div class="verdict-grid">
+      <div><div class="k">主力协议</div><div class="v">Hysteria 2</div><div class="d">基于 QUIC，延迟和吞吐最好，丢包严重的跨境线路上表现突出。占用 UDP 443，加端口跳跃。</div></div>
+      <div><div class="k">TCP 备用</div><div class="v">AnyTLS</div><div class="d">UDP 被运营商限速时自动切过来。真实 TLS 加流量填充，连接复用，后续连接不用重新握手。</div></div>
+      <div><div class="k">保留 REALITY</div><div class="v">经 sing-box 外挂</div><div class="d">Surge 不原生支持 VLESS。Mac 版可以用 External Proxy 拉起 sing-box，作为隐蔽性最强的兜底线路。</div></div>
+      <div><div class="k">拓扑</div><div class="v">旁路由，不需要新 AP</div><div class="d">Mac mini 用网线接现有路由器，把设备的网关和 DNS 指向它。路由器的 Wi-Fi 照常用。</div></div>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <section>
+    <div class="sec-head"><span class="num">01</span><h2>先说约束：Surge 能用哪些协议</h2></div>
+    <div class="prose">
+      <p>Surge 官方手册的 Proxy Protocols 一节列出：HTTP/HTTPS/HTTP2、SOCKS5、Shadowsocks、Snell、VMess、Trojan、TUIC、Hysteria 2、MASQUE、AnyTLS、Trust Tunnel、SSH、WireGuard、Tailscale，以及 External Proxy Program。另外有 Shadow TLS（v2/v3）可以套在大部分 TCP 协议外面。</p>
+      <p><b>没有 VLESS，也就没有 XTLS Vision 和 REALITY。</b>TLS 参数里也没有 uTLS 指纹伪装和 REALITY 选项。所以你现在的服务端，Surge 不能直接连。</p>
+    </div>
+    <div class="callout good"><b>好消息：</b>你用的是 Mac 版。Surge Mac 支持 External Proxy Program：Surge 启动一个外部程序（sing-box），程序在本机开 SOCKS5 端口，Surge 把流量转给它。这样 REALITY 线路可以保留，只是多一个本地进程。iOS 版不支持这个功能。</div>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <div class="sec-head"><span class="num">02</span><h2>协议总览对比</h2></div>
+    <p class="prose note">5 分制，越多越好。速度和延迟按跨境高 RTT、有丢包的线路估计；隐蔽性指抗主动探测和抗流量识别的能力。这些是根据协议设计做的判断，不是测速结果。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>协议</th><th>传输</th><th>吞吐</th><th>延迟</th><th>隐蔽性</th><th>加密</th><th>Surge 支持</th><th>服务端</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td class="proto">Hysteria 2<small>主力推荐</small></td><td>QUIC/UDP</td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="pill good">iOS 5.8 / Mac 5.4+</span></td><td>sing-box / 官方 hysteria</td></tr>
+          <tr><td class="proto">TUIC v5</td><td>QUIC/UDP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="pill good">原生</span></td><td>sing-box</td></tr>
+          <tr class="pick"><td class="proto">AnyTLS<small>TCP 备用推荐</small></td><td>TLS/TCP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="pill good">iOS 5.17 / Mac 6.4.3+</span></td><td>sing-box</td></tr>
+          <tr><td class="proto">Snell v5</td><td>TCP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●<span class="off">●●●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="pill good">原生，Surge 自家</span></td><td>snell-server（闭源）</td></tr>
+          <tr><td class="proto">Snell v5 + ShadowTLS v3</td><td>TCP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="pill good">原生</span></td><td>snell-server + sing-box</td></tr>
+          <tr><td class="proto">Snell v6<small>beta</small></td><td>TCP</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="pill warn">iOS 5.20 / Mac 6.7+，beta</span></td><td>snell-server beta</td></tr>
+          <tr><td class="proto">VLESS + REALITY + Vision<small>你现在的</small></td><td>TLS/TCP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●●●</span></td><td><span class="pill warn">仅 Mac，经 External</span></td><td>Xray（已部署）</td></tr>
+          <tr><td class="proto">Trojan</td><td>TLS/TCP</td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="pill good">原生</span></td><td>多种</td></tr>
+          <tr><td class="proto">WireGuard</td><td>UDP</td><td><span class="dots">●●●●<span class="off">●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●<span class="off">●●●●</span></span></td><td><span class="dots">●●●●●</span></td><td><span class="pill good">原生</span></td><td>多种</td></tr>
+          <tr><td class="proto">VMess</td><td>TCP/WS</td><td><span class="dots">●●<span class="off">●●●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="dots">●●<span class="off">●●●</span></span></td><td><span class="dots">●●●<span class="off">●●</span></span></td><td><span class="pill good">原生</span></td><td>多种，已过时</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <div class="sec-head"><span class="num">03</span><h2>各协议的优劣</h2></div>
+    <div class="cards">
+      <div class="card pick">
+        <div class="card-top"><h3>Hysteria 2</h3><span class="pill good">主力</span></div>
+        <div class="role">QUIC · TLS 1.3 · TCP 与 UDP 都能转发</div>
+        <ul class="pro">
+          <li>一条 QUIC 连接里多路复用，新请求不用再握手，延迟最低</li>
+          <li>自带激进的拥塞控制（Brutal），丢包多的跨境线路照样能跑满带宽</li>
+          <li>Surge 支持端口跳跃，单个端口被限速时影响小</li>
+          <li>Mac 6.4.3+ 有 Salamander 混淆，iOS 5.20 / Mac 6.7+ 有 Gecko 混淆</li>
+        </ul>
+        <ul class="con">
+          <li>走 UDP，部分运营商高峰期会限速或丢弃 UDP，所以必须有 TCP 备用</li>
+          <li>流量特征是 QUIC，隐蔽性不如 REALITY</li>
+          <li>需要域名和证书（也可以自签名，再在 Surge 里固定证书指纹）</li>
+        </ul>
+      </div>
+      <div class="card pick">
+        <div class="card-top"><h3>AnyTLS</h3><span class="pill good">TCP 备用</span></div>
+        <div class="role">TLS · 流量填充 · 默认复用连接</div>
+        <ul class="pro">
+          <li>专门针对 TLS-in-TLS 特征设计，用灵活的填充打散流量形态</li>
+          <li>默认开启连接复用，第一次握手之后，新请求几乎没有额外延迟</li>
+          <li>sing-box 原生支持入站，可以和 Hysteria 2 放在同一个进程里</li>
+          <li>UDP 通过 UDP over TCP 转发，不用额外配置</li>
+        </ul>
+        <ul class="con">
+          <li>需要你自己的域名和证书，域名一旦被标记就会被封</li>
+          <li>比较新，需要 iOS 5.17 / Mac 6.4.3 以上</li>
+          <li>TCP 线路丢包时，吞吐不如 Hysteria 2</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>VLESS + REALITY + Vision</h3><span class="pill warn">外挂兜底</span></div>
+        <div class="role">你已部署 · 借用真实网站的 TLS 握手</div>
+        <ul class="pro">
+          <li>目前抗主动探测最强：探测者看到的是被借用网站的真实证书</li>
+          <li>不需要自己的域名和证书</li>
+          <li>Vision 去掉了 TLS 套 TLS 的重复加密，转发效率高</li>
+        </ul>
+        <ul class="con">
+          <li>Surge 不原生支持，只能在 Mac 上经 sing-box 外挂，多一层本地转发</li>
+          <li>Vision 不能和多路复用一起用，每个新连接都要 TCP + TLS 两个往返</li>
+          <li>iPhone 上的 Surge 用不了</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>Snell v5</h3><span class="pill warn">可选</span></div>
+        <div class="role">Surge 团队自研 · v5 支持 QUIC 代理模式</div>
+        <ul class="pro">
+          <li>为 Surge 设计，集成度最高，配置最简单</li>
+          <li>v4 起支持连接复用；v5 遇到 QUIC 流量会自动用 QUIC 代理模式转发，比逐个转发 UDP 包更高效</li>
+          <li>可以套 ShadowTLS v3，借别人网站的握手来伪装</li>
+        </ul>
+        <ul class="con">
+          <li>不套 ShadowTLS 时，整条流量是看起来随机的加密数据，这正是“全加密流量”检测针对的特征</li>
+          <li>协议和服务端闭源，没有公开规范和第三方审计</li>
+          <li>v6 加了流量整形，但还是 beta，官方说可能有不兼容的变更，而且 v6 去掉了 QUIC 代理模式</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>TUIC v5</h3><span class="pill warn">可替代 HY2</span></div>
+        <div class="role">QUIC · 用 UUID 加密码认证</div>
+        <ul class="pro">
+          <li>和 Hysteria 2 一样多路复用、低延迟，也支持端口跳跃</li>
+          <li>拥塞控制可以选 BBR，对线路更温和</li>
+        </ul>
+        <ul class="con">
+          <li>同样受 UDP 限速影响，不能套 ShadowTLS</li>
+          <li>在丢包严重的线路上，抢带宽的能力一般不如 Hysteria 2</li>
+          <li>Surge 区分 <code>tuic</code>（v4）和 <code>tuic-v5</code>，要和服务端版本对上</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>其他：Trojan / WireGuard / VMess</h3><span class="pill bad">不推荐</span></div>
+        <div class="role">能用，但这个场景下有更好的选择</div>
+        <ul class="con">
+          <li><b>Trojan</b>：AnyTLS 可以看作它的改进版（有填充、默认复用），没理由再选 Trojan</li>
+          <li><b>WireGuard</b>：加密很强、很快，但握手特征明显，在有审查的网络里很容易被识别</li>
+          <li><b>VMess</b>：老协议，依赖时间同步，性能和隐蔽性都已落后</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <div class="sec-head"><span class="num">04</span><h2>延迟从哪里来</h2></div>
+    <div class="prose">
+      <p>打开网页时会建立很多新连接。每个新连接在代理这一层要先握手，握手要在你和 VPS 之间往返（RTT）几次。假设到 VPS 的 RTT 是 150 ms，每多一个往返，每个新连接就多等 150 ms。</p>
+    </div>
+    <div class="bars" role="img" aria-label="各协议建立新连接时代理层的握手往返次数">
+      <div class="legend"><span style="--c: var(--muted)">TCP 握手</span><span style="--c: var(--accent)">TLS 握手</span><span style="--c: var(--link)">QUIC 握手</span></div>
+      <div class="bar-row"><div class="lbl">VLESS + REALITY + Vision<small>每个新连接</small></div><div class="track"><div class="seg tcp" style="width:28%">1 RTT</div><div class="seg tls" style="width:28%">1 RTT</div></div></div>
+      <div class="bar-row"><div class="lbl">AnyTLS / Snell 复用<small>首个连接（冷启动）</small></div><div class="track"><div class="seg tcp" style="width:28%">1 RTT</div><div class="seg tls" style="width:28%">1 RTT</div></div></div>
+      <div class="bar-row"><div class="lbl">AnyTLS / Snell 复用<small>后续连接</small></div><div class="track"><div class="seg zero" style="width:60%">≈ 0，直接走已有隧道</div></div></div>
+      <div class="bar-row"><div class="lbl">Hysteria 2 / TUIC<small>首个连接（冷启动）</small></div><div class="track"><div class="seg quic" style="width:28%">1 RTT</div></div></div>
+      <div class="bar-row"><div class="lbl">Hysteria 2 / TUIC<small>后续连接</small></div><div class="track"><div class="seg zero" style="width:60%">≈ 0，在 QUIC 里新开一条流</div></div></div>
+    </div>
+    <p class="prose note">图里只画代理层的握手开销。之后访问目标网站本身的 TLS 握手，对所有协议都一样，没有画出来。往返次数是按协议设计推算的典型值，不是实测。</p>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <div class="sec-head"><span class="num">05</span><h2>“高安全”拆开看</h2></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>维度</th><th>含义</th><th>Hysteria 2</th><th>AnyTLS</th><th>REALITY</th><th>Snell v5</th></tr></thead>
+        <tbody>
+          <tr><td><b>链路加密</b></td><td>别人能不能看到你的内容</td><td><span class="pill good">TLS 1.3</span></td><td><span class="pill good">TLS 1.3</span></td><td><span class="pill good">TLS 1.3</span></td><td><span class="pill good">AEAD 加密</span></td></tr>
+          <tr><td><b>前向保密</b></td><td>密钥泄露后，过去的流量还能不能被解密</td><td><span class="pill good">有</span></td><td><span class="pill good">有</span></td><td><span class="pill good">有</span></td><td><span class="pill warn">未公开</span></td></tr>
+          <tr><td><b>抗主动探测</b></td><td>别人主动连你的服务器，能不能认出它是代理</td><td><span class="pill warn">中</span></td><td><span class="pill good">较强</span></td><td><span class="pill good">最强</span></td><td><span class="pill warn">中</span></td></tr>
+          <tr><td><b>抗流量识别</b></td><td>只看流量形态，能不能认出是代理</td><td><span class="pill warn">QUIC 特征</span></td><td><span class="pill good">有填充</span></td><td><span class="pill good">像正常 HTTPS</span></td><td><span class="pill bad">全加密特征</span></td></tr>
+          <tr><td><b>实现透明度</b></td><td>代码能不能被审查</td><td><span class="pill good">开源</span></td><td><span class="pill good">开源</span></td><td><span class="pill good">开源</span></td><td><span class="pill bad">闭源</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose note">代理协议只负责加密“你到 VPS”这一段。VPS 到目标网站这一段的安全，靠网站自己的 HTTPS。</p>
+  </section>
+
+  <!-- 6 -->
+  <section>
+    <div class="sec-head"><span class="num">06</span><h2>网络拓扑：现在和目标</h2></div>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 760 200" role="img" aria-label="现有拓扑：光猫连接路由器，设备直接经路由器上网">
+          <rect class="node" x="20" y="70" width="120" height="56" rx="8"/><text class="t" x="80" y="96" text-anchor="middle">互联网</text><text class="s" x="80" y="114" text-anchor="middle">ISP</text>
+          <rect class="node" x="190" y="70" width="120" height="56" rx="8"/><text class="t" x="250" y="96" text-anchor="middle">光猫</text><text class="s" x="250" y="114" text-anchor="middle">ONT / 拨号或桥接</text>
+          <rect class="node" x="360" y="70" width="150" height="56" rx="8"/><text class="t" x="435" y="96" text-anchor="middle">现有路由器</text><text class="s" x="435" y="114" text-anchor="middle">DHCP · Wi-Fi · 网关</text>
+          <rect class="node" x="580" y="70" width="160" height="56" rx="8"/><text class="t" x="660" y="96" text-anchor="middle">手机 / 电视 / 电脑</text><text class="s" x="660" y="114" text-anchor="middle">网关 = 路由器</text>
+          <line class="wire" x1="140" y1="98" x2="190" y2="98"/>
+          <line class="wire" x1="310" y1="98" x2="360" y2="98"/>
+          <line class="wifi" x1="510" y1="98" x2="580" y2="98"/>
+          <text class="wt" x="545" y="88" text-anchor="middle">Wi-Fi</text>
+          <path class="flow" d="M660 140 C 660 175, 120 175, 80 140"/>
+          <polygon class="arrow-a" points="80,134 74,146 87,145"/>
+          <text class="ft" x="380" y="190" text-anchor="middle">现在：所有设备直接经路由器出网</text>
+        </svg>
+      </div>
+      <figcaption>图 1 · 现有拓扑</figcaption>
+    </figure>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 760 340" role="img" aria-label="目标拓扑：Mac mini 有线接入路由器作为旁路由网关，设备流量先到 Mac mini，加密后经路由器发往 VPS">
+          <rect class="node vps" x="20" y="20" width="150" height="62" rx="8"/><text class="t" x="95" y="46" text-anchor="middle">VPS</text><text class="s" x="95" y="64" text-anchor="middle">Xray + sing-box</text>
+          <rect class="node" x="20" y="150" width="150" height="56" rx="8"/><text class="t" x="95" y="176" text-anchor="middle">互联网</text><text class="s" x="95" y="194" text-anchor="middle">ISP</text>
+          <rect class="node" x="210" y="150" width="110" height="56" rx="8"/><text class="t" x="265" y="176" text-anchor="middle">光猫</text><text class="s" x="265" y="194" text-anchor="middle">不变</text>
+          <rect class="node" x="360" y="150" width="150" height="56" rx="8"/><text class="t" x="435" y="176" text-anchor="middle">现有路由器</text><text class="s" x="435" y="194" text-anchor="middle">Wi-Fi + 交换，保留</text>
+          <rect class="node hot" x="560" y="30" width="180" height="70" rx="8"/><text class="t" x="650" y="58" text-anchor="middle">Mac mini · Surge</text><text class="s" x="650" y="76" text-anchor="middle">网关模式 · 192.168.1.2</text><text class="s" x="650" y="92" text-anchor="middle">静态 IP · 不睡眠</text>
+          <rect class="node" x="560" y="240" width="180" height="70" rx="8"/><text class="t" x="650" y="268" text-anchor="middle">手机 / 电视 / 电脑</text><text class="s" x="650" y="286" text-anchor="middle">网关 → 192.168.1.2</text><text class="s" x="650" y="302" text-anchor="middle">DNS  → 192.168.1.2</text>
+          <line class="wire" x1="95" y1="82" x2="95" y2="150"/>
+          <line class="wire" x1="170" y1="178" x2="210" y2="178"/>
+          <line class="wire" x1="320" y1="178" x2="360" y2="178"/>
+          <path class="wire" d="M510 165 L 535 165 L 535 65 L 560 65"/>
+          <text class="wt" x="528" y="120" text-anchor="end">网线</text>
+          <path class="wifi" d="M510 192 L 535 192 L 535 275 L 560 275"/>
+          <text class="wt" x="528" y="240" text-anchor="end">Wi-Fi / 网线</text>
+          <path class="flow" d="M742 262 C 760 200, 760 140, 742 90"/>
+          <polygon class="arrow-a" points="742,84 736,97 749,96"/>
+          <text class="ft" x="752" y="178" text-anchor="end" transform="rotate(-90 752 178)">① 明文流量先到 Mac mini</text>
+          <path class="flow2" d="M560 48 C 420 0, 260 0, 175 40"/>
+          <polygon class="arrow-b" points="170,44 183,44 177,33"/>
+          <text class="ft2" x="370" y="22" text-anchor="middle">② Surge 加密（HY2 / AnyTLS / REALITY）→ 经路由器、光猫 → VPS</text>
+          <text class="wt" x="435" y="232" text-anchor="middle">路由器在这里只做二层交换和出网，不需要改 Wi-Fi</text>
+        </svg>
+      </div>
+      <figcaption>图 2 · 目标拓扑（旁路由）。物理接线只多了一根网线；变化在于设备的“网关”从路由器改成 Mac mini。</figcaption>
+    </figure>
+
+    <h3>需要新的 AP 吗？</h3>
+    <div class="callout good"><b>不需要。</b>旁路由方案里，现有路由器的 Wi-Fi 和交换功能照常工作，设备还是连原来的 Wi-Fi，只是拿到的网关和 DNS 变成 Mac mini。只有两种情况才考虑加 AP：现有 Wi-Fi 覆盖本来就不够（和代理无关）；或者你想把 Mac mini 做成真正的主路由（方案 C），这时也可以把现有路由器改成 AP 模式来用，不用另买。</div>
+
+    <h3>三种接入方式</h3>
+    <div class="opts">
+      <div class="card">
+        <div class="card-top"><h3>A · 逐台手动指定</h3><span class="pill good">先用来测试</span></div>
+        <p class="note">在单个设备的网络设置里，把网关和 DNS 手动填成 Mac mini 的 IP。</p>
+        <ul class="pro"><li>零风险，只影响你改过的设备</li><li>适合先验证整套方案能不能跑通</li></ul>
+        <ul class="con"><li>每台都要手动改，电视之类的设备不一定能改</li></ul>
+      </div>
+      <div class="card pick">
+        <div class="card-top"><h3>B · DHCP 下发 Mac mini</h3><span class="pill good">推荐</span></div>
+        <p class="note">B1：路由器的 DHCP 如果能自定义下发的网关和 DNS（OpenWrt、梅林等一般可以），就填 Mac mini。<br>B2：路由器不能改，就关掉路由器的 DHCP，开 Surge 的 DHCP 服务（Mac 6.5.0+），由它把自己通告成网关和 DNS。</p>
+        <ul class="pro"><li>全屋设备自动生效</li><li>Surge 设备列表里可以给每台设备单独设置规则</li></ul>
+        <ul class="con"><li>Mac mini 宕机，全家断网（B1 改回去很快；B2 要重新打开路由器 DHCP）</li></ul>
+      </div>
+      <div class="card">
+        <div class="card-top"><h3>C · Mac mini 做主路由</h3><span class="pill bad">不推荐</span></div>
+        <p class="note">Mac mini 加一个 USB 或雷雳网卡，一口连光猫拨号，一口连 LAN，原路由器改成 AP 模式。</p>
+        <ul class="pro"><li>拓扑最“干净”</li></ul>
+        <ul class="con"><li>macOS 不是路由器系统：系统更新重启、睡眠、拨号都会出问题</li><li>出故障时没有简单的回退办法</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section>
+    <div class="sec-head"><span class="num">07</span><h2>服务端：在现有 Xray 旁边加 sing-box</h2></div>
+    <div class="prose"><p>Xray 不动，继续监听 TCP 443 跑 REALITY。另起一个 sing-box 进程跑 Hysteria 2 和 AnyTLS。Hysteria 2 用的是 <b>UDP</b> 443，和 Xray 的 TCP 443 不冲突。</p></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>端口</th><th>协议</th><th>程序</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>443/tcp</code></td><td>VLESS + REALITY + Vision</td><td>Xray（已有）</td><td>兜底线路，也给外出的手机用</td></tr>
+          <tr class="pick"><td><code>443/udp</code></td><td>Hysteria 2</td><td>sing-box</td><td>主力线路</td></tr>
+          <tr class="pick"><td><code>20000–30000/udp</code></td><td>重定向到 443/udp</td><td>iptables / nftables</td><td>端口跳跃</td></tr>
+          <tr class="pick"><td><code>8443/tcp</code></td><td>AnyTLS</td><td>sing-box</td><td>TCP 备用</td></tr>
+          <tr><td><code>80/tcp</code></td><td>HTTP</td><td>acme.sh / certbot</td><td>给 <code>vps.example.com</code> 申请证书（443/tcp 被 REALITY 占了，用 HTTP-01 验证或 DNS 验证）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code-head">/etc/sing-box/config.json（服务端，示意）</div>
+    <pre>{
+  "inbounds": [
+    {
+      "type": "hysteria2",
+      "listen": "::",
+      "listen_port": 443,
+      "users": [{ "password": "<span class="h">换成长随机串</span>" }],
+      "tls": {
+        "enabled": true,
+        "server_name": "vps.example.com",
+        "certificate_path": "/etc/ssl/vps/fullchain.pem",
+        "key_path": "/etc/ssl/vps/privkey.pem"
+      }
+    },
+    {
+      "type": "anytls",
+      "listen": "::",
+      "listen_port": 8443,
+      "users": [{ "password": "<span class="h">另一个长随机串</span>" }],
+      "tls": {
+        "enabled": true,
+        "server_name": "vps.example.com",
+        "certificate_path": "/etc/ssl/vps/fullchain.pem",
+        "key_path": "/etc/ssl/vps/privkey.pem"
+      }
+    }
+  ],
+  "outbounds": [{ "type": "direct" }]
+}</pre>
+    <div class="code-head">端口跳跃（服务端）</div>
+    <pre><span class="c"># 把 20000-30000/udp 全部转到 443/udp（网卡名按实际修改）</span>
+iptables -t nat -A PREROUTING -i eth0 -p udp --dport 20000:30000 -j REDIRECT --to-ports 443
+ip6tables -t nat -A PREROUTING -i eth0 -p udp --dport 20000:30000 -j REDIRECT --to-ports 443</pre>
+  </section>
+
+  <!-- 8 -->
+  <section>
+    <div class="sec-head"><span class="num">08</span><h2>Mac mini 上的 Surge 配置</h2></div>
+    <div class="code-head">sing-box 本地配置 ~/.config/sing-box/reality.json（给 REALITY 外挂用）</div>
+    <pre>{
+  "inbounds": [{ "type": "mixed", "listen": "127.0.0.1", "listen_port": 1080 }],
+  "outbounds": [{
+    "type": "vless",
+    "server": "<span class="h">VPS 的 IP</span>",
+    "server_port": 443,
+    "uuid": "<span class="h">你现有的 UUID</span>",
+    "flow": "xtls-rprx-vision",
+    "tls": {
+      "enabled": true,
+      "server_name": "<span class="h">REALITY 借用的域名</span>",
+      "utls": { "enabled": true, "fingerprint": "chrome" },
+      "reality": { "enabled": true, "public_key": "<span class="h">公钥</span>", "short_id": "<span class="h">short id</span>" }
+    }
+  }]
+}</pre>
+    <div class="code-head">Surge 配置片段</div>
+    <pre>[Proxy]
+<span class="c"># 主力：Hysteria 2 + 端口跳跃；download-bandwidth 填你家宽带的实际下行（Mbps）</span>
+HY2 = hysteria2, vps.example.com, 443, password=<span class="h">xxx</span>, download-bandwidth=500, port-hopping="20000-30000", port-hopping-interval=30
+
+<span class="c"># TCP 备用：AnyTLS，默认复用连接</span>
+AnyTLS = anytls, vps.example.com, 8443, password=<span class="h">yyy</span>, sni=vps.example.com
+
+<span class="c"># 兜底：经 sing-box 外挂 VLESS + REALITY（仅 Mac）；addresses 只能填 IP</span>
+REALITY = external, exec="/opt/homebrew/bin/sing-box", args="run", args="-c", args="/Users/<span class="h">you</span>/.config/sing-box/reality.json", local-port=1080, addresses=<span class="h">VPS 的 IP</span>, udp-relay=true
+
+[Proxy Group]
+<span class="c"># 按顺序选第一条可用的；HY2 被 UDP 限速时自动降到 AnyTLS</span>
+Proxy = fallback, HY2, AnyTLS, REALITY, url=http://www.gstatic.com/generate_204, interval=60
+
+[Rule]
+<span class="c"># 示例：电视直连、局域网直连，其余按你的规则集分流</span>
+DEVICE-NAME,Apple-TV,DIRECT
+IP-CIDR,192.168.0.0/16,DIRECT
+GEOIP,CN,DIRECT
+FINAL,Proxy</pre>
+    <p class="prose note">网关模式在 Surge Mac 界面里打开，配置文件里没有开关。上面的参数名来自官方手册，但这份配置没有在真机上跑过，第一次使用时请留意 Surge 的报错提示。</p>
+  </section>
+
+  <!-- 9 -->
+  <section>
+    <div class="sec-head"><span class="num">09</span><h2>落地步骤</h2></div>
+    <ol class="steps">
+      <li><div><b>服务端加 sing-box。</b>申请证书，按第 07 节起 Hysteria 2 和 AnyTLS，加端口跳跃规则，云厂商安全组放行 443/udp、20000–30000/udp、8443/tcp。</div></li>
+      <li><div><b>Mac mini 准备。</b>用网线接路由器，设静态 IP（例如 192.168.1.2）。系统设置里打开“显示器关闭时防止自动进入睡眠”和“断电后自动启动”，关掉自动安装更新后重启。</div></li>
+      <li><div><b>Surge 单机验证。</b>先不开网关，在 Mac mini 本机测通三条线路，看延迟和速度，确认 fallback 能切换。</div></li>
+      <li><div><b>开网关模式，用一台设备测试（方案 A）。</b>手机手动把网关和 DNS 设成 192.168.1.2，确认能上网、规则生效、Surge 设备列表里能看到这台手机。</div></li>
+      <li><div><b>处理 IPv6。</b>在路由器 LAN 侧关掉 IPv6（RA/DHCPv6），否则设备会走 IPv6 绕过 Mac mini，见第 10 节。</div></li>
+      <li><div><b>全屋生效（方案 B）。</b>能改路由器 DHCP 的网关和 DNS 选项就改；不能改就关掉路由器 DHCP，开 Surge DHCP。留一台设备设成静态 IP、网关指向路由器，作为应急入口。</div></li>
+    </ol>
+  </section>
+
+  <!-- 10 -->
+  <section>
+    <div class="sec-head"><span class="num">10</span><h2>风险与坑</h2></div>
+    <div class="risks">
+      <div class="risk"><h3>单点故障 <span class="pill bad">高</span></h3><p>Mac mini 关机、睡眠或 Surge 崩溃，全家断网。对策：禁止睡眠；保留路由器 DHCP 一键恢复的办法；准备一台静态 IP 的应急设备。</p></div>
+      <div class="risk"><h3>IPv6 绕过 <span class="pill bad">高</span></h3><p>路由器还在发 IPv6 地址的话，设备会直接走 IPv6 出网，不经过 Mac mini。最简单的做法是关掉 LAN 侧 IPv6。</p></div>
+      <div class="risk"><h3>UDP 被限速 <span class="pill warn">中</span></h3><p>部分运营商会对 UDP 限速或干扰，Hysteria 2 速度会突然掉。fallback 组会切到 AnyTLS；Hysteria 2 也可以考虑开 Salamander 或 Gecko 混淆。</p></div>
+      <div class="risk"><h3>UDP Fast Path <span class="pill warn">中</span></h3><p>Surge Mac 6.4.0+ 的网关模式里，短时间内连接数很多的设备（典型如游戏、P2P）会被切到三层直接转发，这部分流量<b>不经过代理</b>，规则也不生效。可以在 Dashboard 或设备列表里给单个设备固定行为。</p></div>
+      <div class="risk"><h3>设备自带加密 DNS <span class="pill warn">中</span></h3><p>Chrome 安全 DNS、Android 私人 DNS、iCloud 专用代理会绕开 Surge 的 DNS。Surge 仍然能按 IP 和 SNI 分流，但基于域名的规则可能不准。需要时在这些设备上关掉这些功能。</p></div>
+      <div class="risk"><h3>Wi-Fi 当网关 <span class="pill warn">中</span></h3><p>Mac mini 如果走 Wi-Fi，所有流量要在无线上来回两次，延迟和吞吐都会变差。一定要用网线。</p></div>
+      <div class="risk"><h3>Snell v6 beta <span class="pill warn">低</span></h3><p>想试 Snell 的话先用 v5。v6 官方标注为 beta，协议可能不兼容地变更。</p></div>
+      <div class="risk"><h3>网关只对局域网开放 <span class="pill good">默认安全</span></h3><p><code>gateway-restricted-to-lan</code> 默认开启，只接受本网段设备，就算误配了 DMZ 也不会暴露到公网。保持默认。</p></div>
+    </div>
+  </section>
+
+  <!-- sources -->
+  <section>
+    <div class="sec-head"><span class="num">—</span><h2>来源</h2></div>
+    <ul class="sources">
+      <li><a href="https://manual.nssurge.com/" target="_blank" rel="noopener">Surge Manual（协议目录）</a></li>
+      <li><a href="https://manual.nssurge.com/policies/hysteria2.html" target="_blank" rel="noopener">Surge · Hysteria 2</a></li>
+      <li><a href="https://manual.nssurge.com/policies/anytls.html" target="_blank" rel="noopener">Surge · AnyTLS</a></li>
+      <li><a href="https://manual.nssurge.com/policies/tuic.html" target="_blank" rel="noopener">Surge · TUIC</a></li>
+      <li><a href="https://manual.nssurge.com/policies/snell.html" target="_blank" rel="noopener">Surge · Snell</a></li>
+      <li><a href="https://manual.nssurge.com/policies/tls.html" target="_blank" rel="noopener">Surge · TLS 与 Shadow TLS</a></li>
+      <li><a href="https://manual.nssurge.com/policies/trust-tunnel.html" target="_blank" rel="noopener">Surge · Trust Tunnel</a></li>
+      <li><a href="https://manual.nssurge.com/policies/external.html" target="_blank" rel="noopener">Surge · External Proxy Program</a></li>
+      <li><a href="https://manual.nssurge.com/features/gateway.html" target="_blank" rel="noopener">Surge · Gateway Mode</a></li>
+      <li><a href="https://manual.nssurge.com/features/dhcp.html" target="_blank" rel="noopener">Surge · DHCP</a></li>
+      <li><a href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/" target="_blank" rel="noopener">sing-box · Hysteria2 入站</a></li>
+      <li><a href="https://innei.in/en/posts/experience/aws-vless-surge-full-chain-deployment-agent-log" target="_blank" rel="noopener">innei.in · VLESS + Surge 全链路部署记录</a></li>
+      <li><a href="https://innei.in/en/posts/experience/aws-vless-surge-protocol-boundaries-network-switching" target="_blank" rel="noopener">innei.in · Surge 协议边界</a></li>
+      <li><a href="https://xtls.github.io/" target="_blank" rel="noopener">Project X（Xray / REALITY）</a></li>
+    </ul>
+  </section>
+</div>
